@@ -1,0 +1,24 @@
+{
+  "databases": {
+    "adm_landing" : "create database if not exists adm_landing",
+    "adm_working" : "create database if not exists adm_working"
+  },
+  "adm_landing" : {
+    "kaggle_csv_data" : "create table if not exists $$db.kaggle_csv_data (time datetime,open double(10,8),close double(10,8),high double(10,8),low double(10,8),volume double(20,5),cc_id int(3))",
+    "coin_currency_mapping" : "create table if not exists $$db.coin_currency_mapping(coin_symbol varchar(5),currency varchar(5),cc_id int(5) NOT NULL,PRIMARY KEY (cc_id))",
+    "cmc_url_data": "create table if not exists $$db.cmc_url_data(cmc_id int(5) NOT NULL,coin_logo varchar(50),coin_website varchar(50),PRIMARY KEY (cmc_id))",
+    "cmc_listing_data": "create table if not exists $$db.cmc_listing_data (cmc_id int(5) NOT NULL,cmc_rank int(5),num_market_pairs int(5),circulating_supply bigint(15),total_supply bigint(15),max_supply bigint(15),price  decimal(20,6),volume_24h decimal(20,5),volume_24h_reported decimal(20,5),volume_7d decimal(20,5),volume_7d_reported decimal(20,5),volume_30d decimal(20,5),volume_30d_reported decimal(20,5),percent_change_1h decimal(10,5),percent_change_24h decimal(10,5),percent_change_7d decimal(10,5),market_cap bigint(15),last_updated varchar(35),PRIMARY KEY (cmc_id))",
+    "cmc_meta_api_data": "create table if not exists $$db.cmc_meta_api_data(cmc_id int(5) NOT NULL,name varchar(30),symbol varchar(5),slug varchar(30),is_active varchar(5),first_historical_data varchar(35),last_historical_data varchar(35),PRIMARY KEY (cmc_id))",
+    "git_commits": "create table if not exists $$db.git_commits(name varchar(35),git_commits int(8))"
+    },
+  "adm_working" : {
+    "kaggle_final_data": "create table if not exists $$db.kaggle_final_data like adm_landing.kaggle_csv_data",
+    "coin_git_commits": "create table if not exists $$db.coin_git_commits(cmc_id int(5) NOT NULL,name varchar(30),symbol varchar(5),git_commits int (8))",
+    "twitter_data": "create table if not exists $$db.twitter_data (cmc_id int(5) NOT NULL,name varchar (35),symbol varchar(5),twitter_url varchar(50),twitter_followers int(11),twitter_rem varchar(30),PRIMARY KEY (cmc_id))",
+    "weights": "create table if not exists $$db.weights(volatality int(5),volume int(5),market_cap int(5),7d_price_change int(5),git_updates int(5),cmc_rank int(5),twitter_followers int(5))",
+    "normalized_data": "create table if not exists $$db.normalized_data(market_cap decimal(10,7),volume_7d decimal(10,7),volatility decimal(10,7),git_commits decimal(10,7),twitter_followers decimal(10,7),cmc_rank int(5),local_rank int(5),rank_normalized decimal(10,7),cmc_id int(5) not null,name varchar(35),symbol varchar(10))",
+    "recommendation": "create table if not exists adm_working.recommendation as select a.cmc_id, a.name,a.symbol,(a.rank_normalized*(b.cmc_rank)/100) + (a.market_cap*(b.market_cap)/100) + (a.volume_7d*(b.volume)/100) + (a.volatility*(b.volatality)/100) + (a.git_commits*(b.git_updates)/100) + (a.twitter_followers*(b.twitter_followers)/100) as score from adm_working.normalized_data a inner join adm_working.weights b order by score desc"
+  },
+  "volatality_query" : "CREATE TABLE adm_working.volatility_data as (select cc_id, stddev(m.close)/avg(m.close) as volatility from (select cc_id,DATE(time),max(close) as close from adm_working.kaggle_final_data group by 1,2 order by 1 asc, 2 desc) m  group by 1)",
+  "volatality_final_query" : "CREATE TABLE adm_working.volatility_final_data as(select cc_id, coin_symbol, volatility from adm_working.volatility_data vd join adm_landing.coin_currency_mapping cc on vd.cc_id = cc.cc_id where cc.currency = 'usd')"
+}
